@@ -1,0 +1,17 @@
+{
+  "name": "authenticator-clj",
+  "version": "0.1.0",
+  "description": "Authy-like TOTP/HOTP one-time-password manager CLI — ClojureScript + Datomic-API vault",
+  "private": true,
+  "bin": {
+    "authenticator-clj": "bin/authenticator-clj"
+  },
+  "scripts": {
+    "build": "shadow-cljs release cli",
+    "watch": "shadow-cljs watch cli",
+    "start": "node target/authenticator.js"
+  },
+  "devDependencies": {
+    "shadow-cljs": "^2.28.20"
+  }
+}
