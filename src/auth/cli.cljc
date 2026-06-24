@@ -43,7 +43,12 @@
     (cond
       (empty? a) m
       (str/starts-with? (str (first a)) "--")
-      (recur (drop 2 a) (assoc m (keyword (subs (first a) 2)) (second a)))
+      (let [k (keyword (subs (first a) 2))
+            v (second a)]
+        ;; a value that is itself a flag (or missing) means this flag had none
+        (if (and v (not (str/starts-with? (str v) "--")))
+          (recur (drop 2 a) (assoc m k v))
+          (recur (rest a) (assoc m k nil))))
       :else (recur (rest a) m))))
 
 ;; ───────────────────────── commands ─────────────────────────
@@ -92,19 +97,30 @@
   (let [first-arg (first args)
         acct (if (and first-arg (str/starts-with? (str/lower-case (str first-arg)) "otpauth://"))
                (uri/parse first-arg)
-               (account-from-flags (parse-flags args)))]
+               (account-from-flags (parse-flags args)))
+        secret (:account/secret acct)]
     (cond
       (nil? acct)
       (do (println "Could not parse otpauth URI.") 1)
 
-      (str/blank? (str (:account/name acct)))
+      ;; str/blank? handles nil correctly — don't (str nil) first, that yields "nil"
+      (str/blank? (:account/name acct))
       (do (println "An account name is required (--name, or use an otpauth:// URI).") 1)
 
-      (empty? (db/account-id acct))
-      (do (println "Invalid account.") 1)
-
-      (empty? (base32/decode (str (:account/secret acct))))
+      (or (str/blank? secret) (empty? (base32/decode secret)))
       (do (println "A valid Base32 --secret is required.") 1)
+
+      (not (contains? #{:totp :hotp} (:account/type acct)))
+      (do (println "--type must be totp or hotp.") 1)
+
+      (not (contains? #{:sha1 :sha256 :sha512} (:account/algorithm acct)))
+      (do (println "--algorithm must be sha1, sha256 or sha512.") 1)
+
+      (not (<= 6 (or (:account/digits acct) 6) 8))
+      (do (println "--digits must be 6, 7 or 8.") 1)
+
+      (and (= :totp (:account/type acct)) (not (pos? (or (:account/period acct) 30))))
+      (do (println "--period must be a positive number of seconds.") 1)
 
       :else
       (let [conn (vault/load-conn)]

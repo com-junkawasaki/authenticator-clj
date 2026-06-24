@@ -58,6 +58,22 @@
   (is (= 30 (otp/remaining-seconds 30 30)))   ; exact boundary
   (is (= 20 (otp/remaining-seconds 10 30))))
 
+(deftest remaining-seconds-tolerates-bad-period
+  ;; a malformed/hand-edited vault entry must not divide-by-zero the whole listing
+  (is (= 1 (otp/remaining-seconds 59 0)))     ; period 0 → falls back to 30
+  (is (= 1 (otp/remaining-seconds 59 -30))))  ; negative → falls back to 30
+
+(deftest account-code-defensive-against-malformed-accounts
+  (let [base {:account/type :totp :account/secret rfc4226-secret-b32}]
+    (testing "period 0 does not crash, behaves like the 30s default"
+      (is (= (otp/account-code (assoc base :account/period 30) 59)
+             (otp/account-code (assoc base :account/period 0) 59))))
+    (testing "unknown algorithm falls back to sha1 instead of throwing"
+      (is (= (otp/account-code (assoc base :account/algorithm :sha1) 59)
+             (otp/account-code (assoc base :account/algorithm :md5) 59))))
+    (testing "absurd digit count is clamped, not overflowed"
+      (is (string? (otp/account-code (assoc base :account/digits 50) 59))))))
+
 (deftest account-code-dispatch
   (let [totp-acct {:account/type :totp :account/secret rfc4226-secret-b32
                    :account/digits 8 :account/period 30 :account/algorithm :sha1}

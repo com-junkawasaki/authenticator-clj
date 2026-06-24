@@ -68,19 +68,34 @@
    (hotp secret-ints (quot (- unix-seconds t0) period)
          {:algorithm algorithm :digits digits})))
 
+(defn- safe-period
+  "A usable step length: a positive period, else the 30s default. Guards against
+  a malformed/hand-edited vault entry (period 0 → divide-by-zero, or negative)."
+  [period]
+  (if (and (number? period) (pos? period)) period 30))
+
+(defn- safe-digits
+  "Clamp digit count to a sane range so `pow10` can't overflow a JVM long on an
+  absurd value imported from a malformed otpauth URI."
+  [digits]
+  (if (number? digits) (max 1 (min 10 digits)) 6))
+
 (defn remaining-seconds
   "Seconds left in the current TOTP step — drives the countdown in the UI."
   [unix-seconds period]
-  (- period (mod unix-seconds period)))
+  (let [p (safe-period period)]
+    (- p (mod unix-seconds p))))
 
 ;; ───────────────────────── account-level convenience ─────────────────────────
 
 (defn account-code
   "Current code for a stored account map (see auth.db schema). For :hotp the
-  caller is responsible for persisting the incremented counter."
+  caller is responsible for persisting the incremented counter. Defensive about
+  period/digits so one malformed account can't crash a whole `code` listing."
   [{:account/keys [secret type algorithm digits period counter]} unix-seconds]
   (let [secret-ints (base32/decode secret)
-        opts {:algorithm (or algorithm :sha1) :digits (or digits 6)}]
+        algo (if (contains? #{:sha1 :sha256 :sha512} algorithm) algorithm :sha1)
+        opts {:algorithm algo :digits (safe-digits digits)}]
     (if (= type :hotp)
       (hotp secret-ints (or counter 0) opts)
-      (totp secret-ints unix-seconds (assoc opts :period (or period 30))))))
+      (totp secret-ints unix-seconds (assoc opts :period (safe-period period))))))
