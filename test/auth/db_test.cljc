@@ -1,7 +1,9 @@
 (ns auth.db-test
   (:require [clojure.test :refer [deftest is testing]]
             [auth.db :as db]
-            [auth.uri :as uri]))
+            [auth.uri :as uri]
+            #?(:clj [clojure.edn :as edn]
+               :cljs [cljs.reader :as edn])))
 
 (def gh  {:account/type :totp :account/name "octocat" :account/issuer "GitHub"
           :account/secret "JBSWY3DPEHPK3PXP"})
@@ -52,7 +54,7 @@
           _     (do (db/put! conn gh) (db/put! conn aws))
           state (db/->state conn)
           ;; simulate pr-str + read-string through the wire
-          conn2 (db/state->conn (read-string (pr-str state)))]
+          conn2 (db/state->conn (edn/read-string (pr-str state)))]
       (is (= (map :account/id (db/all conn))
              (map :account/id (db/all conn2))))
       (is (= "JBSWY3DPEHPK3PXP" (:account/secret (db/get-by-id conn2 "AWS:root")))))))
