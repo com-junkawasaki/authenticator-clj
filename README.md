@@ -19,7 +19,7 @@ $ authenticator-clj code
 | Concern | Choice | Why |
 |---|---|---|
 | Language / host | **ClojureScript → Node.js** (shadow-cljs `:node-script`) | the requested cljs CLI |
-| Datastore | **Datomic-API EAV store** ([`langchain.db`](../langchain-clj)) | pure-`.cljc`, dependency-free, Datomic-shaped (`transact!`/`q`/`pull`); accounts are entities, lookups are Datalog |
+| Datastore | **Datomic-API EAV store** ([`langchain.db`](../langchain)) | pure-`.cljc`, dependency-free, Datomic-shaped (`transact!`/`q`/`pull`); accounts are entities, lookups are Datalog |
 | OTP core | RFC 4226 (HOTP) + RFC 6238 (TOTP), SHA1/256/512, 6/8 digits | `auth.otp`, verified against the RFC test vectors |
 | HMAC | Node `crypto` (cljs) / `javax.crypto` (JVM) via reader conditionals | only host-specific code; one `hmac-bytes` fn |
 | Persistence | EDN vault at `~/.authenticator-clj/vault.edn`, mode `0600` | the connection state is plain data, so it round-trips through `pr-str` |
