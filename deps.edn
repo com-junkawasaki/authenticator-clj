@@ -4,8 +4,11 @@
  ;; runs unchanged on JVM Clojure, ClojureScript (Node), SCI and WASM. The CLI
  ;; itself targets ClojureScript/Node (see shadow-cljs.edn); every namespace is
  ;; .cljc so the same logic is unit-tested on the JVM test-runner.
+ ;; Pinned at schema-from-tx-data, which auth.db uses to state the vault
+ ;; schema once, in the Datomic installation tx-data dialect the rest of this
+ ;; workspace's datom corpora are declared in.
  :deps {io.github.kotoba-lang/langchain
-        {:git/tag "v0.1.1" :sha "044ecb221e6dfc4a1e055e83b5996253aaa2eda8"}}
+        {:git/sha "8789fe4cc387f294b6936f2171e419a252fd9ea8"}}
  :aliases
  {;; local checkout for workspace development (orgs/kotoba-lang/*)
   :dev {:override-deps {io.github.kotoba-lang/langchain

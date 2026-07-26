@@ -23,6 +23,16 @@ $ authenticator-clj code
 | OTP core | RFC 4226 (HOTP) + RFC 6238 (TOTP), SHA1/256/512, 6/8 digits | `auth.otp`, verified against the RFC test vectors |
 | HMAC | Node `crypto` (cljs) / `javax.crypto` (JVM) via reader conditionals | only host-specific code; one `hmac-bytes` fn |
 | Persistence | EDN vault at `~/.authenticator-clj/vault.edn`, mode `0600` | the connection state is plain data, so it round-trips through `pr-str` |
+| Schema dialect | Datomic installation tx-data, converted by `langchain.db/schema-from-tx-data` | one dialect across the workspace's datom corpora, stated once rather than once per host |
+
+> **Why the vault is a snapshot and not a journal.** The decision ledgers in
+> [`authentication`](https://github.com/kotoba-lang/authentication) and
+> [`authorization`](https://github.com/kotoba-lang/authorization) persist through
+> [`journal`](https://github.com/kotoba-lang/journal), an append-only history
+> replayed on open. That is the right shape for an audit trail and the wrong one
+> here: an append-only file keeps every value it was ever given, so `remove`
+> would retract a secret from the index while leaving it on disk forever. A
+> vault's delete has to actually erase, so this one rewrites the whole state.
 
 > **Why "Datomic" is `langchain.db` here.** This workspace's `*-clj` projects
 > share a pure-`.cljc`, zero-dependency, **Datomic-API-compatible** EAV/Datalog

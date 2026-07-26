@@ -64,3 +64,12 @@
         a    (uri/parse "otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP")]
     (db/put! conn a)
     (is (= "GitHub:octocat" (:account/id (db/get-by-id conn "GitHub:octocat"))))))
+
+(deftest schema-is-declared-once-in-the-canonical-dialect
+  (testing "every attribute the vault writes is declared, and :account/id is
+            what makes a re-scanned QR code upsert"
+    (is (= #{:account/id :account/issuer :account/name :account/secret
+             :account/type :account/algorithm :account/digits :account/period
+             :account/counter}
+           (set (map :db/ident db/schema-tx-data))))
+    (is (= :db.unique/identity (get-in db/schema [:account/id :db/unique])))))

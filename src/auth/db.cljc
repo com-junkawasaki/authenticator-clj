@@ -5,20 +5,41 @@
   engine (create-conn / transact! / q / pull / entity). Accounts are entities;
   lookups are Datalog. `:account/id` is a `:db.unique/identity` attribute, so
   re-adding the same issuer+name upserts instead of duplicating (the behaviour
-  you want when re-scanning a QR code)."
+  you want when re-scanning a QR code).
+
+  WHY THIS VAULT IS A SNAPSHOT AND NOT A JOURNAL. The decision ledgers in
+  `authentication` and `authorization` persist through `kotoba-lang/journal`,
+  an append-only history replayed on open -- the right shape for an audit
+  trail, and the wrong one here. An append-only file keeps every value it was
+  ever given, so `remove!` would retract a secret from the index while leaving
+  it on disk forever. A vault's delete has to actually erase, so `auth.vault`
+  rewrites the whole state instead."
   (:require [langchain.db :as d]
             [clojure.string :as str]))
 
+(def schema-tx-data
+  "The vault schema, written in Datomic's installation tx-data dialect -- the
+  one dialect the rest of this workspace's datom corpora are declared in.
+  `langchain.db/schema-from-tx-data` converts it to the map the store reads,
+  so the attributes are stated once rather than once per host."
+  [{:db/ident :account/id :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/one :db/unique :db.unique/identity
+    :db/doc "issuer:name, or name -- unique, so re-scanning a QR code upserts instead of duplicating."}
+   {:db/ident :account/issuer :db/valueType :db.type/string :db/cardinality :db.cardinality/one}
+   {:db/ident :account/name :db/valueType :db.type/string :db/cardinality :db.cardinality/one}
+   {:db/ident :account/secret :db/valueType :db.type/string :db/cardinality :db.cardinality/one
+    :db/doc "The Base32 shared secret. Cleartext -- see the security note in auth.vault."}
+   {:db/ident :account/type :db/valueType :db.type/keyword :db/cardinality :db.cardinality/one
+    :db/doc ":totp or :hotp."}
+   {:db/ident :account/algorithm :db/valueType :db.type/keyword :db/cardinality :db.cardinality/one}
+   {:db/ident :account/digits :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+   {:db/ident :account/period :db/valueType :db.type/long :db/cardinality :db.cardinality/one}
+   {:db/ident :account/counter :db/valueType :db.type/long :db/cardinality :db.cardinality/one
+    :db/doc "The HOTP moving factor."}])
+
 (def schema
-  {:account/id        {:db/unique :db.unique/identity}
-   :account/issuer    {}
-   :account/name      {}
-   :account/secret    {}
-   :account/type      {}
-   :account/algorithm {}
-   :account/digits    {}
-   :account/period    {}
-   :account/counter   {}})
+  "`schema-tx-data` in the map dialect `langchain.db` reads."
+  (d/schema-from-tx-data schema-tx-data))
 
 (defn account-id
   "Canonical identity for an account: `issuer:name`, or just `name`."
