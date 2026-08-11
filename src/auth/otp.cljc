@@ -29,8 +29,12 @@
 
 ;; ───────────────────────── helpers (pure) ─────────────────────────
 
-(defn- counter->bytes
-  "8-byte big-endian encoding of a counter (the HOTP moving factor)."
+(defn counter-bytes
+  "8-byte big-endian encoding of a counter (the HOTP moving factor).
+
+  Public because a host whose HMAC is asynchronous cannot call `hotp`: it has
+  to build the message itself, await its own primitive, and finish with
+  `code-from-hmac`. See that function for why."
   [counter]
   (loop [i 7, c counter, acc [0 0 0 0 0 0 0 0]]
     (if (or (neg? i) (zero? c))
@@ -45,19 +49,49 @@
 
 ;; ───────────────────────── HOTP / TOTP (pure) ─────────────────────────
 
+(defn code-from-hmac
+  "RFC 4226 §5.3 dynamic truncation: HMAC bytes -> the code string. Pure.
+
+  Split out from `hotp` so a host whose HMAC primitive is ASYNCHRONOUS can
+  still produce a code. Cloudflare Workers is the case that forced it: WebCrypto
+  is the only crypto there (`crypto.subtle.sign` returns a Promise) and
+  `hmac-bytes`'s :cljs branch reaches for Node's `crypto` module, which needs
+  the `nodejs_compat` flag. A Worker that turns that flag on to compute a
+  6-digit code gives up a build-time guarantee about its whole dependency
+  surface for one HMAC — so instead it computes the HMAC with WebCrypto, awaits
+  it, and calls this.
+
+  Same split, and the same reason, as `authentication`'s IFactorVerifier /
+  IAsyncFactorVerifier pair: verification is synchronous where the platform API
+  is and Promise-returning where it is not."
+  ([hs] (code-from-hmac hs nil))
+  ([hs {:keys [digits] :or {digits 6}}]
+   (let [offset (bit-and (peek hs) 0x0f)
+         bin    (bit-or (bit-shift-left (bit-and (nth hs offset) 0x7f) 24)
+                        (bit-shift-left (nth hs (+ offset 1)) 16)
+                        (bit-shift-left (nth hs (+ offset 2)) 8)
+                        (nth hs (+ offset 3)))]
+     (zero-pad (mod bin (pow10 digits)) digits))))
+
 (defn hotp
   "RFC 4226 HOTP. `secret-ints` is the raw shared secret (unsigned bytes),
   `counter` the moving factor. Options: :algorithm (default :sha1),
   :digits (default 6). Returns the zero-padded code string."
   ([secret-ints counter] (hotp secret-ints counter nil))
   ([secret-ints counter {:keys [algorithm digits] :or {algorithm :sha1 digits 6}}]
-   (let [hs     (hmac-bytes algorithm secret-ints (counter->bytes counter))
-         offset (bit-and (peek hs) 0x0f)
-         bin    (bit-or (bit-shift-left (bit-and (nth hs offset) 0x7f) 24)
-                        (bit-shift-left (nth hs (+ offset 1)) 16)
-                        (bit-shift-left (nth hs (+ offset 2)) 8)
-                        (nth hs (+ offset 3)))]
-     (zero-pad (mod bin (pow10 digits)) digits))))
+   (code-from-hmac (hmac-bytes algorithm secret-ints (counter-bytes counter))
+                   {:digits digits})))
+
+(defn counter-for
+  "RFC 6238 time-step for a Unix time. Public for the same reason as
+  `counter-bytes`: an async host builds the message itself.
+
+  Also the unit a verifier's drift window is counted in — accept
+  `(counter-for now)` plus or minus N steps, never plus or minus N seconds,
+  or the window silently changes width as `now` moves within a step."
+  ([unix-seconds] (counter-for unix-seconds nil))
+  ([unix-seconds {:keys [period t0] :or {period 30 t0 0}}]
+   (quot (- unix-seconds t0) period)))
 
 (defn totp
   "RFC 6238 TOTP. `secret-ints` raw shared secret, `unix-seconds` current Unix
@@ -65,7 +99,7 @@
   ([secret-ints unix-seconds] (totp secret-ints unix-seconds nil))
   ([secret-ints unix-seconds {:keys [algorithm digits period t0]
                               :or {algorithm :sha1 digits 6 period 30 t0 0}}]
-   (hotp secret-ints (quot (- unix-seconds t0) period)
+   (hotp secret-ints (counter-for unix-seconds {:period period :t0 t0})
          {:algorithm algorithm :digits digits})))
 
 (defn- safe-period

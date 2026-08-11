@@ -81,3 +81,47 @@
                    :account/counter 0 :account/digits 6 :account/algorithm :sha1}]
     (is (= "94287082" (otp/account-code totp-acct 59)))
     (is (= "755224"   (otp/account-code hotp-acct 0)))))
+
+;; ── the async-host split ────────────────────────────────────────────────────
+;;
+;; `code-from-hmac` / `counter-bytes` / `counter-for` exist so a host whose HMAC
+;; is a Promise (WebCrypto on Cloudflare Workers) can still produce a code. The
+;; risk of publishing them is that the split path quietly diverges from the one
+;; the RFC vectors above exercise, and nothing notices until a real user's
+;; authenticator app stops matching. So the test is not "the split works" but
+;; "the split is the same function".
+
+(deftest split-path-equals-whole-path
+  (testing "HOTP: rebuilding hotp from its published parts gives the same code"
+    (let [secret (mapv int (map #(bit-and (int %) 0xff) "12345678901234567890"))]
+      (doseq [counter (range 0 10)]
+        (is (= (otp/hotp secret counter)
+               (otp/code-from-hmac
+                (otp/hmac-bytes :sha1 secret (otp/counter-bytes counter))
+                {:digits 6}))
+            (str "counter " counter)))))
+
+  (testing "TOTP: same, through counter-for"
+    (let [secret (mapv int (map #(bit-and (int %) 0xff) "12345678901234567890"))]
+      (doseq [t [59 1111111109 1111111111 1234567890 2000000000]]
+        (is (= (otp/totp secret t)
+               (otp/code-from-hmac
+                (otp/hmac-bytes :sha1 secret (otp/counter-bytes (otp/counter-for t)))
+                {:digits 6}))
+            (str "t " t)))))
+
+  (testing "digits carries through the split"
+    (let [secret (mapv int (map #(bit-and (int %) 0xff) "12345678901234567890"))]
+      (doseq [d [6 7 8]]
+        (is (= (otp/hotp secret 3 {:digits d})
+               (otp/code-from-hmac (otp/hmac-bytes :sha1 secret (otp/counter-bytes 3))
+                                   {:digits d}))
+            (str d " digits"))))))
+
+(deftest counter-for-is-step-aligned
+  (testing "every second inside one 30s step maps to the same counter"
+    (is (apply = (map otp/counter-for (range 1111111080 1111111110)))))
+  (testing "and the next second starts the next step"
+    (is (= (inc (otp/counter-for 1111111109)) (otp/counter-for 1111111110))))
+  (testing "a custom period is honoured"
+    (is (= 2 (otp/counter-for 120 {:period 60})))))
