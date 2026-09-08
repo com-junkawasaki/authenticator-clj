@@ -4,7 +4,7 @@
 
   Pure .cljc: bytes are represented as Clojure vectors of unsigned ints in
   [0,255], so no host byte-array type leaks across the JVM/Node boundary."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def ^:private alphabet "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
 
@@ -17,7 +17,7 @@
   out-of-alphabet character is skipped (authenticator apps often print the
   secret in spaced groups)."
   [s]
-  (loop [cs  (seq (str/upper-case (str s)))
+  (loop [cs  (seq (str/upper (str s)))
          buf 0      ; bit accumulator
          n   0      ; bits currently in buf
          out (transient [])]

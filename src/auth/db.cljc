@@ -15,7 +15,7 @@
   it on disk forever. A vault's delete has to actually erase, so `auth.vault`
   rewrites the whole state instead."
   (:require [langchain.db :as d]
-            [clojure.string :as str]))
+            [kotoba.lang.text :as str]))
 
 (def schema-tx-data
   "The vault schema, written in Datomic's installation tx-data dialect -- the
@@ -92,8 +92,8 @@
   (let [dbv (d/db conn)]
     (->> (d/q '[:find [?id ...] :where [?e :account/id ?id]] dbv)
          (map #(d/pull dbv '[*] [:account/id %]))
-         (sort-by (juxt #(str/lower-case (or (:account/issuer %) ""))
-                        #(str/lower-case (or (:account/name %) "")))))))
+         (sort-by (juxt #(str/lower (or (:account/issuer %) ""))
+                        #(str/lower (or (:account/name %) "")))))))
 
 (defn get-by-id [conn id]
   (d/pull (d/db conn) '[*] [:account/id id]))
@@ -103,8 +103,8 @@
   [conn q]
   (if (str/blank? q)
     (all conn)
-    (let [needle (str/lower-case q)]
+    (let [needle (str/lower q)]
       (filter (fn [a]
-                (some #(and % (str/includes? (str/lower-case (str %)) needle))
+                (some #(and % (str/includes? (str/lower (str %)) needle))
                       [(:account/id a) (:account/issuer a) (:account/name a)]))
               (all conn)))))

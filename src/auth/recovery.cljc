@@ -16,7 +16,7 @@
   themselves means a dump of the store is a dump of working credentials, and
   storing them 'encrypted' with a key in the same system is the same thing
   with extra steps. `verdict` therefore compares digests and never sees a code."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def alphabet
   "Crockford-shaped base32: no I, L, O or U.
@@ -69,7 +69,7 @@
   `0` is refusing a correct code for a handwriting reason."
   [s]
   (when (string? s)
-    (let [up (-> s str/upper-case
+    (let [up (-> s str/upper
                  (str/replace #"[IL]" "1")
                  (str/replace #"O" "0")
                  (str/replace (re-pattern (str "[^" alphabet "]")) ""))]
