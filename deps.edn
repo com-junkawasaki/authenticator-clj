@@ -7,7 +7,12 @@
  ;; Pinned at schema-from-tx-data, which auth.db uses to state the vault
  ;; schema once, in the Datomic installation tx-data dialect the rest of this
  ;; workspace's datom corpora are declared in.
- :deps {io.github.kotoba-lang/langchain
+ :deps {
+        ;; kotoba.lang.text, not clojure.string. Pinned as an explicit floor:
+        ;; tools.deps takes the NEWEST sha it is shown, so without a floor here
+        ;; this repo silently rides whatever a sibling happens to name.
+        io.github.kotoba-lang/text {:git/sha "73bdb13ae7a3d004b44bca08be03a3191157a38f"}
+       io.github.kotoba-lang/langchain
         {:git/sha "8789fe4cc387f294b6936f2171e419a252fd9ea8"}}
  :aliases
  {;; local checkout for workspace development (orgs/kotoba-lang/*)

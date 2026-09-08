@@ -8,7 +8,7 @@
             [auth.vault :as vault]
             [auth.clock :as clock]
             [auth.base32 :as base32]
-            [clojure.string :as str]))
+            [kotoba.lang.text :as str]))
 
 ;; ───────────────────────── rendering helpers ─────────────────────────
 
@@ -86,16 +86,16 @@
 (defn- account-from-flags [flags]
   {:account/name      (:name flags)
    :account/issuer    (:issuer flags)
-   :account/secret    (some-> (:secret flags) (str/replace #"\s" "") str/upper-case)
+   :account/secret    (some-> (:secret flags) (str/replace #"\s" "") str/upper)
    :account/type      (keyword (or (:type flags) "totp"))
-   :account/algorithm (keyword (str/lower-case (or (:algorithm flags) "sha1")))
+   :account/algorithm (keyword (str/lower (or (:algorithm flags) "sha1")))
    :account/digits    (->int (:digits flags) 6)
    :account/period    (->int (:period flags) 30)
    :account/counter   (->int (:counter flags) 0)})
 
 (defn- cmd-add [args]
   (let [first-arg (first args)
-        acct (if (and first-arg (str/starts-with? (str/lower-case (str first-arg)) "otpauth://"))
+        acct (if (and first-arg (str/starts-with? (str/lower (str first-arg)) "otpauth://"))
                (uri/parse first-arg)
                (account-from-flags (parse-flags args)))
         secret (:account/secret acct)]
@@ -161,7 +161,7 @@
       (do (println "Usage: authenticator-clj import <file-of-otpauth-uris>") 1)
       (let [conn  (vault/load-conn)
             lines (str/split-lines (vault/read-text path))
-            uris  (->> lines (map str/trim) (filter #(str/starts-with? (str/lower-case %) "otpauth://")))
+            uris  (->> lines (map str/trim) (filter #(str/starts-with? (str/lower %) "otpauth://")))
             accts (keep uri/parse uris)]
         (doseq [a accts] (db/put! conn a))
         (vault/save-conn! conn)

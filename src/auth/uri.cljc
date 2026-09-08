@@ -7,7 +7,7 @@
   LABEL is `Issuer:account` (issuer prefix optional). Percent-decoding here is
   byte-level ASCII (sufficient for the issuer/account labels seen in practice);
   full UTF-8 multi-byte percent sequences are not reconstructed."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def ^:private prefix "otpauth://")
 
@@ -17,7 +17,7 @@
 (def ^:private hex-digits "0123456789abcdef")
 
 (defn- hex->int [c]
-  (str/index-of hex-digits (str/lower-case (str c))))
+  (str/index-of hex-digits (str/lower (str c))))
 
 (defn- char-code [c]
   #?(:clj (int c) :cljs (.charCodeAt (str c) 0)))
@@ -46,7 +46,7 @@
               (contains? #{45 95 46 126} code)) ; - _ . ~
         (str c)
         (let [h #?(:clj (Integer/toString code 16) :cljs (.toString code 16))]
-          (str "%" (str/upper-case (if (= 1 (count h)) (str "0" h) h))))))))
+          (str "%" (str/upper (if (= 1 (count h)) (str "0" h) h))))))))
 
 (defn- parse-query [q]
   (if (str/blank? q)
@@ -55,7 +55,7 @@
       (for [pair (str/split q #"&")
             :let [[k v] (str/split pair #"=" 2)]
             :when (seq k)]
-        [(str/lower-case k) (percent-decode (or v ""))]))))
+        [(str/lower k) (percent-decode (or v ""))]))))
 
 (defn- ->int [s default]
   (if (and s (re-matches #"\d+" s)) #?(:clj (Long/parseLong s) :cljs (js/parseInt s 10)) default))
@@ -64,13 +64,13 @@
   "Parses an otpauth URI into an account map (auth.db schema keys), or nil if
   it is not an otpauth URI or has no secret."
   [uri]
-  (when (and (string? uri) (str/starts-with? (str/lower-case uri) prefix))
+  (when (and (string? uri) (str/starts-with? (str/lower uri) prefix))
     (let [body        (subs uri (count prefix))
           qpos        (str/index-of body "?")
           path        (if qpos (subs body 0 qpos) body)
           query       (if qpos (subs body (inc qpos)) "")
           slashpos    (str/index-of path "/")
-          type-str    (str/lower-case (if slashpos (subs path 0 slashpos) path))
+          type-str    (str/lower (if slashpos (subs path 0 slashpos) path))
           label-raw   (if slashpos (subs path (inc slashpos)) "")
           label       (percent-decode label-raw)
           colon       (str/index-of label ":")
@@ -82,8 +82,8 @@
         {:account/type      (if (= type-str "hotp") :hotp :totp)
          :account/name      account
          :account/issuer    (or (get params "issuer") label-iss)
-         :account/secret    (str/upper-case (str/replace secret #"\s" ""))
-         :account/algorithm (keyword (str/lower-case (get params "algorithm" "sha1")))
+         :account/secret    (str/upper (str/replace secret #"\s" ""))
+         :account/algorithm (keyword (str/lower (get params "algorithm" "sha1")))
          :account/digits    (->int (get params "digits") 6)
          :account/period    (->int (get params "period") 30)
          :account/counter   (->int (get params "counter") 0)}))))
@@ -97,7 +97,7 @@
                 (percent-encode name))
         ps    (cond-> [(str "secret=" secret)]
                 (seq issuer)        (conj (str "issuer=" (percent-encode issuer)))
-                algorithm           (conj (str "algorithm=" (str/upper-case (clojure.core/name algorithm))))
+                algorithm           (conj (str "algorithm=" (str/upper (clojure.core/name algorithm))))
                 digits              (conj (str "digits=" digits))
                 (= type :totp)      (conj (str "period=" (or period 30)))
                 (= type :hotp)      (conj (str "counter=" (or counter 0))))]

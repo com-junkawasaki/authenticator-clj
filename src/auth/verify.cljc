@@ -31,7 +31,7 @@
   against a person and weak against a loop. The attempt budget is the caller's
   (`onetime.core/verify-once-limited` already models it); this namespace only
   refuses to pretend a code was right."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def default-window
   "Steps accepted either side of the current one. 1 — so a 30-second step
