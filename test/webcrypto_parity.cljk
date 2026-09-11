@@ -1,11 +1,11 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; WebCrypto 経路が RFC の値そのものを出すことを検査する。
 ;;
-;;   npx nbb --classpath src test/webcrypto_parity.cljk
+;;   kbb --backend sci --classpath src test/webcrypto_parity.cljk
 ;;
 ;; ## なぜ JVM のテストで足りないか
 ;;
-;; `clojure -M:test` は `auth.adapters.webcrypto` を読み込めない —— CLJS 専用で、
+;; `kbb -M:test` は `auth.adapters.webcrypto` を読み込めない —— CLJS 専用で、
 ;; `js/crypto.subtle` に依存する。つまり **async 経路だけが未検査のまま残る**。
 ;; そこが壊れても JVM 側 177 assertion は全部緑のままで、気づくのは本番で
 ;; 誰かの authenticator アプリが合わなくなった時になる。
