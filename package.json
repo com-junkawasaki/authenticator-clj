@@ -10,7 +10,7 @@
     "build": "shadow-cljs release cli",
     "watch": "shadow-cljs watch cli",
     "start": "node target/authenticator.js",
-    "test:webcrypto": "nbb --classpath src test/webcrypto_parity.cljs"
+    "test:webcrypto": "nbb --classpath src test/webcrypto_parity.cljk"
   },
   "devDependencies": {
     "shadow-cljs": "^2.28.20"

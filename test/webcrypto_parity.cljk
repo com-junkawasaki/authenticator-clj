@@ -1,7 +1,7 @@
 #!/usr/bin/env nbb
 ;; WebCrypto 経路が RFC の値そのものを出すことを検査する。
 ;;
-;;   npx nbb --classpath src test/webcrypto_parity.cljs
+;;   npx nbb --classpath src test/webcrypto_parity.cljk
 ;;
 ;; ## なぜ JVM のテストで足りないか
 ;;
