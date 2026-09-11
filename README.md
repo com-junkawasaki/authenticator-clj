@@ -62,7 +62,7 @@ auth.core    entry points (cljs main / JVM -main)
 
 ```bash
 npm install                       # optional: pulls the shadow-cljs npm wrapper
-clojure -M:dev:cljs -m shadow.cljs.devtools.cli release cli   # → target/authenticator.js
+kbb -M:dev:cljs -m shadow.cljs.devtools.cli release cli   # → target/authenticator.js
 node target/authenticator.js help
 # or, after `npm link`:  authenticator-clj help
 ```
@@ -90,7 +90,7 @@ Vault location override: `AUTHENTICATOR_HOME=/path/to/vault.edn`.
 ## Test (JVM)
 
 ```bash
-clojure -M:dev:test
+kbb -M:dev:test
 ```
 
 Covers the RFC 4226 HOTP vectors, the RFC 6238 TOTP vectors (SHA1/256/512),
